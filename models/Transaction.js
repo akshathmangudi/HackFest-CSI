@@ -2,17 +2,17 @@ const mongoose = require("mongoose");
 
 const transactionSchema = new mongoose.Schema(
   {
-    to: {
+    source: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Node",
       required: true,
-      autopopulate: true,
+      // autopopulate: true,
     },
-    from: {
+    target: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Node",
       required: true,
-      autopopulate: true,
+      // autopopulate: true,
     },
     amount: {
       type: Number,
@@ -22,6 +22,10 @@ const transactionSchema = new mongoose.Schema(
   { strict: true, timestamps: true }
 );
 
-schema.plugin(require("mongoose-autopopulate"));
+transactionSchema.plugin(require("mongoose-autopopulate"));
+
+transactionSchema.set("toJSON", {
+  virtuals: true,
+});
 
 module.exports = mongoose.model("Transaction", transactionSchema);

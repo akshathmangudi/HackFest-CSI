@@ -9,6 +9,7 @@ const mongoose = require("mongoose");
 const Node = require("./models/Node");
 
 const catchAsync = require("./catchAsync");
+const Transaction = require("./models/Transaction");
 
 const app = express();
 
@@ -42,10 +43,13 @@ app.get(
 app.get(
   "/nodes",
   catchAsync(async (req, res) => {
-    const nodes = await Node.find({});
+    const limiter = 10000;
+    const nodes = await Node.find({}).limit(limiter);
+    const links = await Transaction.find({}).limit(limiter);
     res.json({
       status: "success",
       nodes: nodes,
+      links: links,
     });
   })
 );

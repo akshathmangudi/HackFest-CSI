@@ -2,6 +2,10 @@ const mongoose = require("mongoose");
 
 const nodeSchema = new mongoose.Schema(
   {
+    name: {
+      type: String,
+      required: true,
+    },
     rating: {
       type: Number,
       required: true,
@@ -12,14 +16,6 @@ const nodeSchema = new mongoose.Schema(
       default: "Normal",
     },
     amount: {
-      type: Number,
-      required: true,
-    },
-    x: {
-      type: Number,
-      required: true,
-    },
-    y: {
       type: Number,
       required: true,
     },
@@ -43,5 +39,17 @@ const nodeSchema = new mongoose.Schema(
   },
   { strict: true, timestamps: true }
 );
+
+nodeSchema.set("toJSON", {
+  virtuals: true,
+});
+
+// nodeSchema.virtual("name").get(function () {
+//   return this._id.toHexString();
+// });
+
+nodeSchema.virtual("val").get(function () {
+  return 1;
+});
 
 module.exports = mongoose.model("Node", nodeSchema);
