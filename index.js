@@ -43,13 +43,24 @@ app.get(
 app.get(
   "/nodes",
   catchAsync(async (req, res) => {
-    const limiter = 10000;
+    const limiter = 1000;
     const nodes = await Node.find({}).limit(limiter);
     const links = await Transaction.find({}).limit(limiter);
     res.json({
       status: "success",
       nodes: nodes,
       links: links,
+    });
+  })
+);
+
+app.get(
+  "/node/:id",
+  catchAsync(async (req, res) => {
+    const { id } = req.params;
+
+    res.json({
+      status: "success",
     });
   })
 );

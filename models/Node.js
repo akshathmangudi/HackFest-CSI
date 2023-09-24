@@ -1,5 +1,7 @@
 const mongoose = require("mongoose");
 
+const Transaction = require("./Transaction");
+
 const nodeSchema = new mongoose.Schema(
   {
     name: {
@@ -43,10 +45,6 @@ const nodeSchema = new mongoose.Schema(
 nodeSchema.set("toJSON", {
   virtuals: true,
 });
-
-// nodeSchema.virtual("name").get(function () {
-//   return this._id.toHexString();
-// });
 
 nodeSchema.virtual("val").get(function () {
   return 1;
