@@ -6,9 +6,9 @@ const csv = require("csv-parser");
 const path = require("path");
 
 const enumWithWeightages = [
-  { value: "Official", weightage: 0.2 },
-  { value: "Normal", weightage: 0.7 },
-  { value: "Criminal", weightage: 0.1 },
+  { value: "Official", weightage: 0.001 },
+  { value: "Normal", weightage: 0.997 },
+  { value: "Criminal", weightage: 0.002 },
 ];
 
 function randomizeEnum(enumArray) {
@@ -114,9 +114,8 @@ const seedNodesAndLinks = async () => {
 
       const getValue = () => {
         const inputString = results[i].Value;
-        const regex = /(\d+\.\d+)/;
 
-        const match = inputString.match(regex);
+        const match = inputString.split(" ");
 
         if (match) {
           const extractedNumber = parseFloat(match[0]);
@@ -127,9 +126,16 @@ const seedNodesAndLinks = async () => {
         }
       };
 
+      const value = getValue();
+
+      if (value === 0) {
+        continue;
+      }
+
       // ===========================================
       const source = results[i].From;
       const sourceNode = await Node.findOne({ name: source }).select("_id");
+
       console.log(sourceNode);
       if (sourceNode) {
         const target = results[i].To;
@@ -138,7 +144,7 @@ const seedNodesAndLinks = async () => {
           const transaction = await Transaction.create({
             source: sourceNode._id,
             target: targetNode._id,
-            amount: getValue(),
+            amount: value,
           });
           counter++;
           console.log(counter, ": ", transaction);
@@ -153,7 +159,7 @@ const seedNodesAndLinks = async () => {
           const transaction = await Transaction.create({
             source: sourceNode._id,
             target: newTargetNode._id,
-            amount: getValue(),
+            amount: value,
           });
           counter++;
           console.log(counter, ": ", transaction);
@@ -174,7 +180,7 @@ const seedNodesAndLinks = async () => {
           const transaction = await Transaction.create({
             source: newSourceNode._id,
             target: targetNode._id,
-            amount: getValue(),
+            amount: value,
           });
           counter++;
           console.log(counter, ": ", transaction);
@@ -189,7 +195,7 @@ const seedNodesAndLinks = async () => {
           const transaction = await Transaction.create({
             source: newSourceNode._id,
             target: newTargetNode._id,
-            amount: getValue(),
+            amount: value,
           });
           counter++;
           console.log(counter, ": ", transaction);

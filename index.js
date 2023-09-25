@@ -43,7 +43,7 @@ app.get(
 app.get(
   "/nodes",
   catchAsync(async (req, res) => {
-    const limiter = 1000;
+    const limiter = 10000;
     const nodes = await Node.find({}).limit(limiter);
     const links = await Transaction.find({}).limit(limiter);
     res.json({
@@ -58,9 +58,15 @@ app.get(
   "/node/:id",
   catchAsync(async (req, res) => {
     const { id } = req.params;
+    const transactions = await Transaction.find({
+      $or: [{ source: id }, { target: id }],
+    }).populate("source target");
+
+    console.log(transactions);
 
     res.json({
       status: "success",
+      transactions: transactions,
     });
   })
 );
