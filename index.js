@@ -62,14 +62,154 @@ app.get(
       $or: [{ source: id }, { target: id }],
     }).populate("source target");
 
-    console.log(transactions);
-
     res.json({
       status: "success",
       transactions: transactions,
     });
   })
 );
+
+// app.get(
+//   "/node/:id/graph",
+//   catchAsync(async (req, res) => {
+//     const id = new mongoose.Types.ObjectId(req.params.id);
+
+//     console.log(id);
+
+//     const pipeline = [
+//       {
+//         $match: {
+//           $or: [{ source: id }, { target: id }],
+//         },
+//       },
+//       {
+//         $graphLookup: {
+//           from: "transactions",
+//           startWith: "$target",
+//           connectFromField: "target",
+//           connectToField: "source",
+//           depthField: "level",
+//           maxDepth: 4,
+//           as: "children",
+//         },
+//       },
+//       {
+//         $unwind: "$children",
+//       },
+//       {
+//         $sort: {
+//           "children.level": -1,
+//         },
+//       },
+//       {
+//         $group: {
+//           _id: "$_id",
+//           source: {
+//             $first: "$source",
+//           },
+//           amount: {
+//             $first: "$amount",
+//           },
+//           children: {
+//             $push: "$children",
+//           },
+//         },
+//       },
+//       {
+//         $addFields: {
+//           children: {
+//             $reduce: {
+//               input: "$children",
+//               initialValue: {
+//                 currentLevel: -1,
+//                 currentLevelChildren: [],
+//                 previousLevelChildren: [],
+//               },
+//               in: {
+//                 $let: {
+//                   vars: {
+//                     prev: {
+//                       $cond: [
+//                         {
+//                           $eq: ["$$value.currentLevel", "$$this.level"],
+//                         },
+//                         "$$value.previousLevelChildren",
+//                         "$$value.currentLevelChildren",
+//                       ],
+//                     },
+//                     current: {
+//                       $cond: [
+//                         {
+//                           $eq: ["$$value.currentLevel", "$$this.level"],
+//                         },
+//                         "$$value.currentLevelChildren",
+//                         [],
+//                       ],
+//                     },
+//                   },
+//                   in: {
+//                     currentLevel: "$$this.level",
+//                     previousLevelChildren: "$$prev",
+//                     currentLevelChildren: {
+//                       $concatArrays: [
+//                         "$$current",
+//                         [
+//                           {
+//                             $mergeObjects: [
+//                               "$$this",
+//                               {
+//                                 children: {
+//                                   $filter: {
+//                                     input: "$$prev",
+//                                     as: "e",
+//                                     cond: {
+//                                       $eq: ["$$e.source", "$$this._id"],
+//                                     },
+//                                   },
+//                                 },
+//                               },
+//                             ],
+//                           },
+//                         ],
+//                       ],
+//                     },
+//                   },
+//                 },
+//               },
+//             },
+//           },
+//         },
+//       },
+//       {
+//         $addFields: {
+//           children: "$children.currentLevelChildren",
+//         },
+//       },
+//     ];
+
+//     const result = await Transaction.aggregate(pipeline);
+
+//     console.log(result);
+
+//     const nodeIds = [];
+
+//     nodeIds.push(id);
+//     await transactions.map((transaction) => {
+//       if (!nodeIds.includes(transaction.source))
+//         nodeIds.push(transaction.source);
+//       if (!nodeIds.includes(transaction.target))
+//         nodeIds.push(transaction.target);
+//     });
+
+//     const nodes = await Node.find({ _id: { $in: nodeIds } });
+
+//     res.json({
+//       status: "success",
+//       nodes: nodes,
+//       links: transactions,
+//     });
+//   })
+// );
 
 // ------------------------------------------------------------- ERROR HANDLING
 
