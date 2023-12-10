@@ -1,17 +1,41 @@
-require("dotenv").config({ path: "./.env" });
+import dotenv from "dotenv";
+dotenv.config({ path: "./.env" });
 
-const express = require("express");
-const cookieParser = require("cookie-parser");
-const cors = require("cors");
-const morgan = require("morgan");
-const mongoose = require("mongoose");
+import express from "express";
+import cookieParser from "cookie-parser";
+import cors from "cors";
+import morgan from "morgan";
+import mongoose from "mongoose";
 
-const Node = require("./models/Node");
+import catchAsync from "./catchAsync.js";
 
-const catchAsync = require("./catchAsync");
-const Transaction = require("./models/Transaction");
+import Node from "./models/Node.js";
+import Transaction from "./models/Transaction.js";
 
+import { Worker } from "worker_threads";
+
+const worker = new Worker("./workers/simulation-worker.js");
 const app = express();
+
+var isSimulating = true;
+
+worker.on("message", async (message) => {
+  try {
+    if (message.type == "update") {
+      console.log("Simulation started...");
+    } else if (message.type == "stop") {
+      isSimulating = false;
+      console.log("== Simulation Stopped ==");
+    }
+  } catch (e) {
+    console.log(e);
+  }
+});
+
+process.on("SIGINT", () => {
+  worker.postMessage({ command: "stop" });
+  process.exit();
+});
 
 // ------------------------------------------------------------- MIDDLEWARE
 app.use(express.json());
@@ -43,7 +67,7 @@ app.get(
 app.get(
   "/nodes",
   catchAsync(async (req, res) => {
-    const limiter = 10000;
+    const limiter = 15000;
     const nodes = await Node.find({}).limit(limiter);
     const links = await Transaction.find({}).limit(limiter);
     res.json({
@@ -226,13 +250,12 @@ app.use((err, req, res, next) => {
 // ------------------------------------------------------------- LISTENER
 
 mongoose
-  .connect("mongodb://localhost/Crypto-Sentinel", {
-    useNewUrlParser: true,
-    useUnifiedTopology: true,
-  })
+  .connect("mongodb://localhost/Crypto-Sentinel")
   .then(() => {
     app.listen(5000, () => {
       console.log("Server running on PORT: 5000");
     });
+
+    worker.postMessage({ command: "init" });
   })
   .catch((error) => console.log(error.message));

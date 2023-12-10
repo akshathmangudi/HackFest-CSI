@@ -1,6 +1,4 @@
-const mongoose = require("mongoose");
-
-const Transaction = require("./Transaction");
+import mongoose from "mongoose";
 
 const nodeSchema = new mongoose.Schema(
   {
@@ -38,6 +36,27 @@ const nodeSchema = new mongoose.Schema(
       },
       required: false,
     },
+    x: {
+      type: Number,
+      required: false,
+    },
+    y: {
+      type: Number,
+      required: false,
+    },
+    vx: {
+      type: Number,
+      required: false,
+    },
+    vy: {
+      type: Number,
+      required: false,
+    },
+    index: {
+      type: Number,
+      required: true,
+      default: 0,
+    },
   },
   { strict: true, timestamps: true }
 );
@@ -50,4 +69,4 @@ nodeSchema.virtual("val").get(function () {
   return 1;
 });
 
-module.exports = mongoose.model("Node", nodeSchema);
+export default mongoose.model("Node", nodeSchema);

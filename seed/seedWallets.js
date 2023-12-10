@@ -1,15 +1,21 @@
-const mongoose = require("mongoose");
-const Node = require("../models/Node");
-const Transaction = require("../models/Transaction");
-const fs = require("fs");
-const csv = require("csv-parser");
-const path = require("path");
+import mongoose from "mongoose";
+import Node from "../models/Node.js";
+import Transaction from "../models/Transaction.js";
+import fs from "fs";
+import csv from "csv-parser";
+import path from "path";
 
 const enumWithWeightages = [
   { value: "Official", weightage: 0.001 },
   { value: "Normal", weightage: 0.997 },
   { value: "Criminal", weightage: 0.002 },
 ];
+
+import { fileURLToPath } from "url";
+import { dirname } from "path";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
 function randomizeEnum(enumArray) {
   const randomValue = Math.random();
@@ -155,6 +161,7 @@ const seedNodesAndLinks = async () => {
             amount: Math.floor(Math.random() * 100000) + 1,
             rating: getRating(),
             information: {},
+            index: counter,
           });
           const transaction = await Transaction.create({
             source: sourceNode._id,
@@ -171,6 +178,7 @@ const seedNodesAndLinks = async () => {
           amount: Math.floor(Math.random() * 100000) + 1,
           rating: getRating(),
           information: {},
+          index: counter,
         });
         const target = results[i].To;
         const targetNode = await Node.findOne({
@@ -191,6 +199,7 @@ const seedNodesAndLinks = async () => {
             amount: Math.floor(Math.random() * 100000) + 1,
             rating: getRating(),
             information: {},
+            index: counter,
           });
           const transaction = await Transaction.create({
             source: newSourceNode._id,
@@ -208,10 +217,7 @@ const seedNodesAndLinks = async () => {
 };
 
 mongoose
-  .connect("mongodb://localhost/Crypto-Sentinel", {
-    useNewUrlParser: true,
-    useUnifiedTopology: true,
-  })
+  .connect("mongodb://localhost/Crypto-Sentinel")
   .then(() => {
     // seedNodes();
     // seedTransactions();

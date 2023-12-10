@@ -1,4 +1,5 @@
-const mongoose = require("mongoose");
+import mongoose from "mongoose";
+import mongooseAutoPopulate from "mongoose-autopopulate";
 
 const transactionSchema = new mongoose.Schema(
   {
@@ -18,14 +19,18 @@ const transactionSchema = new mongoose.Schema(
       type: Number,
       required: true,
     },
+    index: {
+      type: Number,
+      required: false,
+    },
   },
   { strict: true, timestamps: true }
 );
 
-transactionSchema.plugin(require("mongoose-autopopulate"));
+// transactionSchema.plugin(mongooseAutoPopulate);
 
 transactionSchema.set("toJSON", {
   virtuals: true,
 });
 
-module.exports = mongoose.model("Transaction", transactionSchema);
+export default mongoose.model("Transaction", transactionSchema);
