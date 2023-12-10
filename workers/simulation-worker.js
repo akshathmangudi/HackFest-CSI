@@ -26,15 +26,36 @@ mongoose
       async function startSimulation() {
         try {
           //   const limiter = 50000;
-          const nodes = await Node.find({}).lean();
-          const transactions = await Transaction.find({})
-            .populate("source", "index")
-            .populate("target", "index")
-            .exec();
+          const nodesObj = await Node.find({}).lean();
+          const nodes = nodesObj.map(function (node) {
+            return { ...node, id: String(node._id) };
+          });
+
+          console.log(nodes[0]);
+
+          const transactions = await Transaction.aggregate([
+            {
+              $group: {
+                _id: {
+                  $cond: {
+                    if: { $gte: ["$source", "$target"] },
+                    then: { source: "$source", target: "$target" },
+                    else: { source: "$target", target: "$source" },
+                  },
+                },
+                count: { $sum: 1 },
+                doc: { $first: "$$ROOT" }, // Keep the first document of each group
+              },
+            },
+            {
+              $replaceRoot: { newRoot: "$doc" }, // Replace the root with the original documents
+            },
+          ]);
 
           const links = transactions.map((transaction) => ({
-            source: transaction.source.index,
-            target: transaction.target.index,
+            id: transaction._id,
+            source: String(transaction.source._id),
+            target: String(transaction.target._id),
           }));
 
           console.log(links[0]);
@@ -43,9 +64,14 @@ mongoose
 
           simulation = d3
             .forceSimulation(nodes)
+            .force(
+              "link",
+              d3.forceLink(links).id((d) => d.id)
+            )
+            .force("charge", d3.forceManyBody().strength(-70))
             .force("center", d3.forceCenter())
-            .force("charge", d3.forceManyBody())
-            .force("link", d3.forceLink().links(links));
+            .force("x", d3.forceX())
+            .force("y", d3.forceY());
 
           simulation.on("tick", () => {
             simulationData = {
@@ -57,7 +83,7 @@ mongoose
 
           setTimeout(() => {
             stopSimulation();
-          }, 30000);
+          }, 60000);
         } catch (e) {
           console.log(e);
         }
@@ -77,7 +103,6 @@ mongoose
                     y: updatedNode.y,
                     vx: updatedNode.vx,
                     vy: updatedNode.vy,
-                    index: updatedNode.index,
                   },
                 },
               },

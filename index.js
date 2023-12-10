@@ -58,18 +58,45 @@ app.use(cors({ credentials: true, origin: true }));
 // ------------------------------------------------------------- ROUTES
 
 app.get(
-  "/secret",
-  catchAsync(async (req, res) => {
-    res.send("HELLO");
-  })
-);
-
-app.get(
   "/nodes",
   catchAsync(async (req, res) => {
     const limiter = 15000;
     const nodes = await Node.find({}).limit(limiter);
-    const links = await Transaction.find({}).limit(limiter);
+    const limitedLinks = await Transaction.find({}).limit(limiter);
+
+    const links = await Transaction.aggregate([
+      {
+        $match: {
+          _id: {
+            $in: limitedLinks.map((transaction) => transaction._id),
+          },
+        },
+      },
+      {
+        $group: {
+          _id: {
+            $cond: {
+              if: { $gte: ["$source", "$target"] },
+              then: { source: "$source", target: "$target" },
+              else: { source: "$target", target: "$source" },
+            },
+          },
+          count: { $sum: 1 },
+          doc: { $first: "$$ROOT" }, // Keep the first document of each group
+        },
+      },
+      // {
+      //   $match: {
+      //     count: { $gt: 1 }, // Filter out pairs that appear only once
+      //   },
+      // },
+      {
+        $replaceRoot: { newRoot: "$doc" }, // Replace the root with the original documents
+      },
+    ]);
+
+    console.log(links.length);
+
     res.json({
       status: "success",
       nodes: nodes,

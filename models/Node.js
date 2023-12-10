@@ -1,5 +1,7 @@
 import mongoose from "mongoose";
 
+import { autoIncrement } from "mongoose-plugin-autoinc";
+
 const nodeSchema = new mongoose.Schema(
   {
     name: {
@@ -55,11 +57,16 @@ const nodeSchema = new mongoose.Schema(
     index: {
       type: Number,
       required: true,
-      default: 0,
     },
   },
   { strict: true, timestamps: true }
 );
+
+nodeSchema.plugin(autoIncrement, { model: "Node", field: "index" });
+
+nodeSchema.set("toObject", {
+  virtuals: true,
+});
 
 nodeSchema.set("toJSON", {
   virtuals: true,

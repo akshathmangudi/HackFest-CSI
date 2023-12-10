@@ -161,7 +161,6 @@ const seedNodesAndLinks = async () => {
             amount: Math.floor(Math.random() * 100000) + 1,
             rating: getRating(),
             information: {},
-            index: counter,
           });
           const transaction = await Transaction.create({
             source: sourceNode._id,
@@ -178,7 +177,6 @@ const seedNodesAndLinks = async () => {
           amount: Math.floor(Math.random() * 100000) + 1,
           rating: getRating(),
           information: {},
-          index: counter,
         });
         const target = results[i].To;
         const targetNode = await Node.findOne({
@@ -199,7 +197,6 @@ const seedNodesAndLinks = async () => {
             amount: Math.floor(Math.random() * 100000) + 1,
             rating: getRating(),
             information: {},
-            index: counter,
           });
           const transaction = await Transaction.create({
             source: newSourceNode._id,

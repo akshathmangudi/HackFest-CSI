@@ -1,5 +1,4 @@
 import mongoose from "mongoose";
-import mongooseAutoPopulate from "mongoose-autopopulate";
 
 const transactionSchema = new mongoose.Schema(
   {
@@ -7,13 +6,11 @@ const transactionSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: "Node",
       required: true,
-      // autopopulate: true,
     },
     target: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Node",
       required: true,
-      // autopopulate: true,
     },
     amount: {
       type: Number,
@@ -27,9 +24,11 @@ const transactionSchema = new mongoose.Schema(
   { strict: true, timestamps: true }
 );
 
-// transactionSchema.plugin(mongooseAutoPopulate);
-
 transactionSchema.set("toJSON", {
+  virtuals: true,
+});
+
+transactionSchema.set("toObject", {
   virtuals: true,
 });
 
