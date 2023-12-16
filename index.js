@@ -120,147 +120,67 @@ app.get(
   })
 );
 
-// app.get(
-//   "/node/:id/graph",
-//   catchAsync(async (req, res) => {
-//     const id = new mongoose.Types.ObjectId(req.params.id);
+app.get(
+  "/node/:id/graph",
+  catchAsync(async (req, res) => {
+    const id = new mongoose.Types.ObjectId(req.params.id);
 
-//     console.log(id);
+    console.log(id);
 
-//     const pipeline = [
-//       {
-//         $match: {
-//           $or: [{ source: id }, { target: id }],
-//         },
-//       },
-//       {
-//         $graphLookup: {
-//           from: "transactions",
-//           startWith: "$target",
-//           connectFromField: "target",
-//           connectToField: "source",
-//           depthField: "level",
-//           maxDepth: 4,
-//           as: "children",
-//         },
-//       },
-//       {
-//         $unwind: "$children",
-//       },
-//       {
-//         $sort: {
-//           "children.level": -1,
-//         },
-//       },
-//       {
-//         $group: {
-//           _id: "$_id",
-//           source: {
-//             $first: "$source",
-//           },
-//           amount: {
-//             $first: "$amount",
-//           },
-//           children: {
-//             $push: "$children",
-//           },
-//         },
-//       },
-//       {
-//         $addFields: {
-//           children: {
-//             $reduce: {
-//               input: "$children",
-//               initialValue: {
-//                 currentLevel: -1,
-//                 currentLevelChildren: [],
-//                 previousLevelChildren: [],
-//               },
-//               in: {
-//                 $let: {
-//                   vars: {
-//                     prev: {
-//                       $cond: [
-//                         {
-//                           $eq: ["$$value.currentLevel", "$$this.level"],
-//                         },
-//                         "$$value.previousLevelChildren",
-//                         "$$value.currentLevelChildren",
-//                       ],
-//                     },
-//                     current: {
-//                       $cond: [
-//                         {
-//                           $eq: ["$$value.currentLevel", "$$this.level"],
-//                         },
-//                         "$$value.currentLevelChildren",
-//                         [],
-//                       ],
-//                     },
-//                   },
-//                   in: {
-//                     currentLevel: "$$this.level",
-//                     previousLevelChildren: "$$prev",
-//                     currentLevelChildren: {
-//                       $concatArrays: [
-//                         "$$current",
-//                         [
-//                           {
-//                             $mergeObjects: [
-//                               "$$this",
-//                               {
-//                                 children: {
-//                                   $filter: {
-//                                     input: "$$prev",
-//                                     as: "e",
-//                                     cond: {
-//                                       $eq: ["$$e.source", "$$this._id"],
-//                                     },
-//                                   },
-//                                 },
-//                               },
-//                             ],
-//                           },
-//                         ],
-//                       ],
-//                     },
-//                   },
-//                 },
-//               },
-//             },
-//           },
-//         },
-//       },
-//       {
-//         $addFields: {
-//           children: "$children.currentLevelChildren",
-//         },
-//       },
-//     ];
+    const getNodes = async (nodeId) => {
+      const queue = [{ nodeId, depth: 0 }];
 
-//     const result = await Transaction.aggregate(pipeline);
+      while (queue.length > 0) {
+        const { nodeId, depth } = queue.shift();
 
-//     console.log(result);
+        const transactions = await Transaction.find({
+          $or: [{ source: nodeId }, { target: nodeId }],
+        }).populate("source target");
 
-//     const nodeIds = [];
+        transactions.forEach((transaction) => {
+          const sourceId = transaction.source._id.toString();
+          const targetId = transaction.target._id.toString();
 
-//     nodeIds.push(id);
-//     await transactions.map((transaction) => {
-//       if (!nodeIds.includes(transaction.source))
-//         nodeIds.push(transaction.source);
-//       if (!nodeIds.includes(transaction.target))
-//         nodeIds.push(transaction.target);
-//     });
+          if (!nodes.some((node) => node._id.toString() === sourceId)) {
+            nodes.push(transaction.source);
+          }
 
-//     const nodes = await Node.find({ _id: { $in: nodeIds } });
+          if (!nodes.some((node) => node._id.toString() === targetId)) {
+            nodes.push(transaction.target);
+          }
 
-//     res.json({
-//       status: "success",
-//       nodes: nodes,
-//       links: transactions,
-//     });
-//   })
-// );
+          links.push({ source: sourceId, target: targetId });
+
+          if (!visitedNodes.has(sourceId)) {
+            visitedNodes.add(sourceId);
+            queue.push({ nodeId: sourceId, depth: depth + 1 });
+          }
+          if (!visitedNodes.has(targetId)) {
+            visitedNodes.add(targetId);
+            queue.push({ nodeId: targetId, depth: depth + 1 });
+          }
+        });
+      }
+    };
+
+    let nodes = [];
+    let links = [];
+    const visitedNodes = new Set();
+
+    const initialNode = await Transaction.findById(id);
+    if (initialNode) {
+      nodes.push(initialNode);
+    }
+
+    await getNodes(id);
+
+    res.json({
+      status: "success",
+      nodes: nodes,
+      links: links,
+    });
+  })
+);
 
 // ------------------------------------------------------------- ERROR HANDLING
 
