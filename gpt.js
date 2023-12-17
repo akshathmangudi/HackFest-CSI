@@ -48,34 +48,40 @@ const CUSTOM_QUERY = async (query) => {
     });
 };
 
-const functionDefinitions = [
+const tools = [
   {
-    name: "GET_DATA",
-    description: "Gets node information and list of transactions",
-    parameters: {
-      type: "object",
-      properties: {
-        selectNode: {
-          type: "string",
+    type: "function",
+    function: {
+      name: "GET_DATA",
+      description: "Gets node information and list of transactions",
+      parameters: {
+        type: "object",
+        properties: {
+          selectNode: {
+            type: "string",
+          },
         },
+        required: ["selectedNode"],
       },
-      required: ["selectedNode"],
     },
   },
   {
-    name: "CUSTOM_QUERY",
-    description:
-      "Allows you to run custom mongoose query on Transactions.find using an object, you're open to using it as you wish. Any errors will be returned as a string",
-    parameters: {
-      type: "object",
-      properties: {
-        query: {
-          type: "object",
-          description:
-            "Object parameters for schema.find, look through mongoose's query documentation and create custom objects to get any data for your situation",
+    type: "function",
+    function: {
+      name: "CUSTOM_QUERY",
+      description:
+        "Allows you to run custom mongoose query on Transactions.find using an object, you're open to using it as you wish. Any errors will be returned as a string",
+      parameters: {
+        type: "object",
+        properties: {
+          query: {
+            type: "object",
+            description:
+              "Object parameters for schema.find, look through mongoose's query documentation and create custom objects to get any data for your situation",
+          },
         },
+        required: ["query"],
       },
-      required: ["query"],
     },
   },
 ];

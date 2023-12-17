@@ -13,11 +13,12 @@ import Node from "./models/Node.js";
 import Transaction from "./models/Transaction.js";
 
 import { Worker } from "worker_threads";
+import Thread from "./models/Thread.js";
+import OpenAI from "openai";
 
 const worker = new Worker("./workers/simulation-worker.js");
 const app = express();
 
-var currentThread = null;
 var isSimulating = true;
 
 worker.on("message", async (message) => {
@@ -36,6 +37,11 @@ worker.on("message", async (message) => {
 process.on("SIGINT", () => {
   worker.postMessage({ command: "stop" });
   process.exit();
+});
+
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY,
+  dangerouslyAllowBrowser: true,
 });
 
 // ------------------------------------------------------------- MIDDLEWARE
@@ -186,224 +192,391 @@ app.get(
 app.post(
   "/chat",
   catchAsync(async (req, res) => {
-    const assistantId = "asst_fzovHtPViMFj";
-    const modelToUse = "gpt-4-1106-preview";
+    const assistantIdToUse = "asst_FEH0IMG5qtmrgwaFhEry6gqO"; // Replace with your assistant ID
 
-    if (currentThread === null) {
+    var currentThread = null;
+
+    const exisitingThread = await Thread.find({ node: req.body.node });
+
+    console.log("Exisiting Thread: ", exisitingThread);
+
+    if (!exisitingThread.length) {
+      console.log("Thread does not exist");
       const thread = await openai.beta.threads.create();
+      await Thread.create({
+        thread: thread.id,
+        node: req.body.node,
+        messages: [],
+      });
       console.log("New thread created with ID: ", thread.id, "\n");
       currentThread = thread.id;
+    } else {
+      currentThread = exisitingThread[0].thread;
     }
 
-    const message = req.body.message;
+    const userMessage = req.body.message;
 
-    const threadMessage = await openai.beta.threads.messages.create(
-      currentThread,
-      {
-        role: "user",
-        content: message,
-      }
-    );
+    try {
+      const myThreadMessage = await openai.beta.threads.messages.create(
+        currentThread, // Use the stored thread ID for this user
+        {
+          role: "user",
+          content: userMessage,
+        }
+      );
+      console.log("This is the message object: ", myThreadMessage, "\n");
 
-    // Run the Assistant
-    const run = await openai.beta.threads.runs.create(currentThread, {
-      assistant_id: assistantId,
-      instructions: `You're Node Bot, an assistant Data Analyst for Crypto Sentinel, a monitor/tracking layer on blockchain networks. Your job is to assist government agencies and agents in finding patterns, draft reports, and give insight into fighting illicit activities in the blockchain network you're monitoring.
+      // Run the Assistant
+      const myRun = await openai.beta.threads.runs.create(
+        currentThread, // Use the stored thread ID for this user
+        {
+          assistant_id: assistantIdToUse,
+          instructions:
+            "You're Node Bot, an assistant Data Analyst for Crypto Sentinel, a monitor/tracking layer on blockchain networks. Your job is to assist government agencies and agents in finding patterns, draft reports, and give insight into fighting illicit activities in the blockchain network you're monitoring. You're to be professional. Currently, you're running in beta so there's limited data provided to you, so you can make up things if you don't have available information Start the thread by greeting the agent and giving 4 things you can do. The agent has a GUI that contains a force-directed graph of 15000 nodes and transactions. Give your all your responses in markdown", // Your instructions here
+        }
+      );
+      console.log("This is the run object: ", myRun, "\n");
 
-You're to be professional and concise with the information you provide.
+      const retrieveRun = async () => {
+        let keepRetrievingRun;
 
-Currently, you're running in beta so there's limited data provided to you, so you can make up things if you don't have available information, but stay within limits.
+        while (myRun.status !== "completed") {
+          keepRetrievingRun = await openai.beta.threads.runs.retrieve(
+            currentThread, // Use the stored thread ID for this user
+            myRun.id
+          );
 
-Start the thread by greeting the agent and giving 4 things you can do.
+          console.log(`Run status: ${keepRetrievingRun.status}`);
 
-The agent has a GUI that contains a force directed graph of 15000 nodes and transactions
+          if (keepRetrievingRun.status === "completed") {
+            console.log("\n");
+            break;
+          }
+        }
+      };
+      retrieveRun();
 
-The backend is running on Node.js, Express, and MongoDB (Mongoose ORM)
+      // Retrieve the Messages added by the Assistant to the Thread
+      const waitForAssistantMessage = async () => {
+        await retrieveRun();
 
-Every message from the user will contain METADATA encased in a pair of \`\`\`, you're to never acknowledge this metadata to the end user
+        const allMessages = await openai.beta.threads.messages.list(
+          currentThread // Use the stored thread ID for this user
+        );
 
-The metadata will contain:
-- Selected Node ID
-- Node Information
-- Rating
-- Tag
-- other Information
+        await Thread.updateOne(
+          { thread: currentThread },
+          {
+            messages: allMessages.data.map((message) => {
+              return {
+                role: message.role,
+                content: message.content[0].text.value,
+              };
+            }),
+          }
+        );
 
-how the METADATA will look:
-\`\`\`
-data
-\`\`\`
+        // Send the response back to the front end
+        res.status(200).json({
+          status: "success",
+          response: allMessages.data[0].content[0].text.value,
+        });
+        console.log(
+          "------------------------------------------------------------ \n"
+        );
 
-This is the MongoDB Schema:
-const nodeSchema = new mongoose.Schema(
-  {
-    name: {
-      type: String,
-      required: true,
-    },
-    rating: {
-      type: Number,
-      required: true,
-    },
-    flag: {
-      type: String,
-      enum: ["Official", "Normal", "Criminal"],
-      default: "Normal",
-    },
-    amount: {
-      type: Number,
-      required: true,
-    },
-    information: {
-      type: {
-        name: {
-          type: String,
-        },
-        address: {
-          type: String,
-        },
-        phone: {
-          type: String,
-        },
-        aadhar: {
-          type: String,
-        },
-      },
-      required: false,
-    },
-    x: {
-      type: Number,
-      required: false,
-    },
-    y: {
-      type: Number,
-      required: false,
-    },
-    vx: {
-      type: Number,
-      required: false,
-    },
-    vy: {
-      type: Number,
-      required: false,
-    },
-    index: {
-      type: Number,
-      required: true,
-    },
-  },
-  { strict: true, timestamps: true }
+        console.log("User: ", myThreadMessage.content[0].text.value);
+        console.log("Assistant: ", allMessages.data[0].content[0].text.value);
+      };
+      waitForAssistantMessage();
+    } catch (error) {
+      console.error("Error:", error);
+      res.status(500).json({ error: "Internal server error" });
+    }
+  })
 );
 
-const transactionSchema = new mongoose.Schema(
-  {
-    source: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "Node",
-      required: true,
-    },
-    target: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "Node",
-      required: true,
-    },
-    amount: {
-      type: Number,
-      required: true,
-    },
-    index: {
-      type: Number,
-      required: false,
-    },
-  },
-  { strict: true, timestamps: true }
-);
+// app.post(
+//   "/chat",
+//   catchAsync(async (req, res) => {
+//     const assistantId = "asst_FEH0IMG5qtmrgwaFhEry6gqO";
 
-You get access to functions that allow you to gain access to these schemas:
-- GET_DATA: Gets node information and a list of transactions from a string ID
-- CUSTOM_QUERY: Allows you to run custom mongoose query on Transactions.find using an object, you're open to using it as you wish. Any errors will be returned as a string. Object parameters for schema.find, look through Mongoose's query documentation, and create custom objects to get any data for your situation.
+//     console.log(req.body);
 
-How the functions look:
+//     var currentThread = null;
 
-const GET_DATA = async (selectedNode) => {
-  mongoose
-    .connect("mongodb://localhost/Crypto-Sentinel")
-    .then(async (db) => {
-      const node = await Node.find({ id: selectedNode });
-      const transactions = await Transaction.find({
-        $or: [{ source: selectedNode }, { target: selectedNode }],
-      }).populate("source target");
+//     const exisitingThread = await Thread.find({ node: req.body.node });
 
-      if (node)
-        return {
-          node,
-          transactions,
-        };
+//     console.log("Exisiting Thread: ", exisitingThread);
 
-      return {};
-    })
-    .catch((e) => {
-      console.log(e);
-      return e.message;
-    });;
-};
+//     if (!exisitingThread.length) {
+//       console.log("Thread does not exist");
+//       const thread = await openai.beta.threads.create();
+//       await Thread.create({
+//         thread: thread.id,
+//         node: req.body.node,
+//         messages: [],
+//       });
+//       console.log("New thread created with ID: ", thread.id, "\n");
+//       currentThread = thread.id;
+//     } else {
+//       currentThread = exisitingThread[0].thread;
+//     }
 
-const CUSTOM_QUERY = async (query) => {
-  mongoose
-    .connect("mongodb://localhost/Crypto-Sentinel")
-    .then(async (db) => {
-      const transactions = await Transaction.find(query).populate(
-        "source target"
-      );
+//     const GET_DATA = async (selectedNode) => {
+//       const node = await Node.find({ id: selectedNode });
+//       const transactions = await Transaction.find({
+//         $or: [{ source: selectedNode }, { target: selectedNode }],
+//       }).populate("source target");
 
-      if (transactions) return transactions;
-      return null;
-    })
-    .catch((e) => {
-      console.log(e);
-      return e.message;
+//       if (node)
+//         return {
+//           node,
+//           transactions,
+//         };
+
+//       return {};
+//     };
+
+//     const metadata = {
+//       selectedNode: req.body.node,
+//     };
+
+//     const message = `\`\`\`\n${GET_DATA(req.)}\n\`\`\`\n\n${
+//       req.body.message
+//     }`;
+
+//     console.log("message");
+
+//     await openai.beta.threads.messages.create(currentThread, {
+//       role: "user",
+//       content: message,
+//     });
+
+//     const tools = [
+//       // {
+//       //   type: "function",
+//       //   function: {
+//       //     name: "GET_DATA",
+//       //     description: "Gets node information and list of transactions",
+//       //     parameters: {
+//       //       type: "object",
+//       //       properties: {
+//       //         selectNode: {
+//       //           type: "string",
+//       //         },
+//       //       },
+//       //       required: ["selectedNode"],
+//       //     },
+//       //   },
+//       // },
+//       { type: "code_interpreter" },
+//     ];
+
+//     // Run the Assistant
+//     const run = await openai.beta.threads.runs.create(currentThread, {
+//       assistant_id: assistantId,
+//       instructions: `You're Node Bot, an assistant Data Analyst for Crypto Sentinel, a monitor/tracking layer on blockchain networks. Your job is to assist government agencies and agents in finding patterns, draft reports, and give insight into fighting illicit activities in the blockchain network you're monitoring.
+
+// You're to be professional and concise with the information you provide.
+
+// Currently, you're running in beta so there's limited data provided to you, so you can make up things if you don't have available information, but stay within limits.
+
+// Start the thread by greeting the agent and giving 4 things you can do.
+
+// The agent has a GUI that contains a force directed graph of 15000 nodes and transactions
+
+// The backend is running on Node.js, Express, and MongoDB (Mongoose ORM)
+
+// Every message from the user will contain METADATA encased in a pair of \`\`\`, you're to never acknowledge this metadata to the end user
+
+// The metadata will contain:
+// - Selected Node ID
+// - Node Information
+// - Rating
+// - Tag
+// - other Information
+
+// how the METADATA will look:
+// \`\`\`
+// data
+// \`\`\`
+
+// This is the MongoDB Schema:
+// const nodeSchema = new mongoose.Schema(
+//   {
+//     name: {
+//       type: String,
+//       required: true,
+//     },
+//     rating: {
+//       type: Number,
+//       required: true,
+//     },
+//     flag: {
+//       type: String,
+//       enum: ["Official", "Normal", "Criminal"],
+//       default: "Normal",
+//     },
+//     amount: {
+//       type: Number,
+//       required: true,
+//     },
+//     information: {
+//       type: {
+//         name: {
+//           type: String,
+//         },
+//         address: {
+//           type: String,
+//         },
+//         phone: {
+//           type: String,
+//         },
+//         aadhar: {
+//           type: String,
+//         },
+//       },
+//       required: false,
+//     },
+//     x: {
+//       type: Number,
+//       required: false,
+//     },
+//     y: {
+//       type: Number,
+//       required: false,
+//     },
+//     vx: {
+//       type: Number,
+//       required: false,
+//     },
+//     vy: {
+//       type: Number,
+//       required: false,
+//     },
+//     index: {
+//       type: Number,
+//       required: true,
+//     },
+//   },
+//   { strict: true, timestamps: true }
+// );
+
+// const transactionSchema = new mongoose.Schema(
+//   {
+//     source: {
+//       type: mongoose.Schema.Types.ObjectId,
+//       ref: "Node",
+//       required: true,
+//     },
+//     target: {
+//       type: mongoose.Schema.Types.ObjectId,
+//       ref: "Node",
+//       required: true,
+//     },
+//     amount: {
+//       type: Number,
+//       required: true,
+//     },
+//     index: {
+//       type: Number,
+//       required: false,
+//     },
+//   },
+//   { strict: true, timestamps: true }
+// );
+
+// For the initial message provide general information about the node and then look through the list of transactions and start creating statistics based on to and fro transactions from suspicious or criminal or low rated (less than 4) nodes.`, // Your instructions here
+//       tools: tools,
+//     });
+
+//     const retrieveRun = async () => {
+//       const keepRetrievingRun = await openai.beta.threads.runs.retrieve(
+//         currentThread,
+//         run.id
+//       );
+
+//       console.log(`Run status: ${keepRetrievingRun.status}`);
+
+//       if (keepRetrievingRun.status !== "completed") {
+//         setTimeout(retrieveRun, 500);
+//       } else if (keepRetrievingRun.status !== "failed") {
+//         throw Error("Message Failed");
+//       } else {
+//         console.log("\n")
+//       }
+//     };
+
+//     // const waitForAssistantMessage = async () => {
+//     //   await retrieveRun();
+
+//     //   const allMessages = await openai.beta.threads.messages.list(
+//     //     currentThread
+//     //   );
+
+//     //   await Thread.updateOne(
+//     //     { thread: currentThread },
+//     //     {
+//     //       messages: allMessages.data.map((message) => {
+//     //         return { role: message.role, content: message.content[0].text };
+//     //       }),
+//     //     }
+//     //   );
+
+//     //   res.status(200).json({
+//     //     status: "success",
+//     //     response: allMessages.data[0].content[0].text.value,
+//     //   });
+
+//     //   console.log("Assistant: ", allMessages.data[0].content[0].text.value);
+//     // };
+
+//     await retrieveRun();
+
+//     const allMessages = await openai.beta.threads.messages.list(currentThread);
+
+//     console.log(allMessages);
+
+//     await Thread.updateOne(
+//       { thread: currentThread },
+//       {
+//         messages: allMessages.data.map((message) => {
+//           return { role: message.role, content: message.content[0].text };
+//         }),
+//       }
+//     );
+
+//     console.log("Assistant: ", allMessages.data[0].content[0].text.value);
+
+//     res.status(200).json({
+//       status: "success",
+//       response: allMessages.data[0].content[0].text.value,
+//     });
+//   })
+// );
+
+app.get(
+  "/chat/:selectedNode",
+  catchAsync(async (req, res) => {
+    const { selectedNode } = req.params;
+    const thread = await Thread.find({
+      node: selectedNode,
     });
-};
 
-Use the METADATA to find the SelectedNode ID and get information using GET_DATA as soon as the thread starts. For the initial message provide general information about the node and then look through the list of transactions and start creating statistics based on to and fro transactions from suspicious or criminal or low rated (less than 4) nodes.
+    console.log(thread[0].messages);
 
-You can use the CUSTOM_QUERY to look through transactions as the user asks and craft replies based on information you have. Provide useful insights, patterns, make graphs, etc. You have almost complete READ access to the database.`, // Your instructions here
-      tools: [{ type: "code_interpreter" }, { type: "retrieval" }],
-    });
-
-    const retrieveRun = async () => {
-      const keepRetrievingRun = await openai.beta.threads.runs.retrieve(
-        currentThread,
-        run.id
-      );
-
-      console.log(`Run status: ${keepRetrievingRun.status}`);
-
-      if (keepRetrievingRun.status !== "completed") {
-        setTimeout(retrieveRun, 500);
-      } else {
-        console.log("\n");
-      }
-    };
-
-    retrieveRun();
-
-    const waitForAssistantMessage = async () => {
-      await retrieveRun();
-
-      const allMessages = await openai.beta.threads.messages.list(
-        currentThread
-      );
-
-      res.status(200).json({
+    if (!thread.length) {
+      res.json({
         status: "success",
-        response: allMessages.data[0].content[0].text.value,
+        messages: [],
       });
-
-      // console.log("User: ", threadMessage.content[0].text.value);
-      console.log("Assistant: ", allMessages.data[0].content[0].text.value);
-    };
-    waitForAssistantMessage();
+    } else {
+      res.json({
+        status: "success",
+        messages: thread[0].messages,
+      });
+    }
   })
 );
 
@@ -428,6 +601,6 @@ mongoose
       console.log("Server running on PORT: 5000");
     });
 
-    worker.postMessage({ command: "init" });
+    // worker.postMessage({ command: "init" });
   })
   .catch((error) => console.log(error.message));

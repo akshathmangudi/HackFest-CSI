@@ -6,6 +6,11 @@ const threadSchema = new mongoose.Schema(
       type: String,
       required: true,
     },
+    node: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Node",
+      required: true,
+    },
     messages: [
       {
         role: {
@@ -17,7 +22,7 @@ const threadSchema = new mongoose.Schema(
       },
     ],
   },
-  { strict: true, timestamps: true }
+  { timestamps: true }
 );
 
 threadSchema.set("toJSON", {
