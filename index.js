@@ -16,12 +16,18 @@ import { Worker } from "worker_threads";
 import Thread from "./models/Thread.js";
 import OpenAI from "openai";
 
-const worker = new Worker("./workers/simulation-worker.js");
+const simulationWorker = new Worker("./workers/simulation-worker.js");
+const crawlerWorker = new Worker("./workers/crawler-worker.js");
 const app = express();
+
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY,
+  dangerouslyAllowBrowser: true,
+});
 
 var isSimulating = true;
 
-worker.on("message", async (message) => {
+simulationWorker.on("message", async (message) => {
   try {
     if (message.type == "update") {
       console.log("Simulation started...");
@@ -34,14 +40,23 @@ worker.on("message", async (message) => {
   }
 });
 
-process.on("SIGINT", () => {
-  worker.postMessage({ command: "stop" });
-  process.exit();
+crawlerWorker.on("message", async (message) => {
+  try {
+    if (message.type == "update") {
+      console.log("Crawler Started");
+    } else if (message.type == "stop") {
+      isSimulating = false;
+      console.log("== Crawler Stopped ==");
+    }
+  } catch (e) {
+    console.log(e);
+  }
 });
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-  dangerouslyAllowBrowser: true,
+process.on("SIGINT", () => {
+  simulationWorker.postMessage({ command: "stop" });
+  crawlerWorker.postMessage({ command: "stop" });
+  process.exit();
 });
 
 // ------------------------------------------------------------- MIDDLEWARE
@@ -57,7 +72,6 @@ const corsOrigin =
         "https://vitap.locaro.in",
         "https://admin.vitap.locaro.in",
         "https://demo.vitap.locaro.in",
-        "https://business.vitap.locaro.in",
       ];
 
 app.use(cors({ credentials: true, origin: true }));
@@ -126,6 +140,8 @@ app.get(
     });
   })
 );
+
+//
 
 app.get(
   "/node/:id/graph",
@@ -601,6 +617,7 @@ mongoose
       console.log("Server running on PORT: 5000");
     });
 
-    // worker.postMessage({ command: "init" });
+    simulationWorker.postMessage({ command: "init" });
+    crawlerWorker.postMessage({ command: "init" });
   })
   .catch((error) => console.log(error.message));

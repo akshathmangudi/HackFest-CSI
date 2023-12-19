@@ -14,7 +14,7 @@ mongoose
       let simulationData;
 
       parentPort.on("message", (message) => {
-        console.log("Received message from main thread:", message);
+        console.log("SIMULATION - Received message from main thread:", message);
 
         if (message.command === "init") {
           startSimulation();
@@ -30,8 +30,6 @@ mongoose
           const nodes = nodesObj.map(function (node) {
             return { ...node, id: String(node._id) };
           });
-
-          console.log(nodes[0]);
 
           const transactions = await Transaction.aggregate([
             {
@@ -57,8 +55,6 @@ mongoose
             source: String(transaction.source._id),
             target: String(transaction.target._id),
           }));
-
-          console.log(links[0]);
 
           parentPort.postMessage({ type: "update" });
 
