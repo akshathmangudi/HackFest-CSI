@@ -7,14 +7,24 @@ import Crawler from "../models/Crawler.js";
 import torRequest from "tor-request";
 import natural from "natural";
 
-const suspiciousKeywords = ["porn", "drugs", "document", "passport", "hitman"];
+const suspiciousKeywords = [
+  "porn",
+  "drugs",
+  "document",
+  "passport",
+  "hitman",
+  "assassin",
+  "gore",
+  "terrorism",
+  // NSFW
+];
 
 const bitcoinRegex = /\b(bc1|[13])[a-zA-HJ-NP-Z0-9]{25,39}\b/g;
 const urlRegex = /href=["']?(https?:\/\/[^'" >]+)["']?/gi;
 
 var isEnabled = true;
 
-const MAX_DEPTH = 5;
+const MAX_DEPTH = 10;
 
 mongoose
   .connect("mongodb://localhost/Crypto-Sentinel")
@@ -79,17 +89,16 @@ mongoose
                     );
                     for (const addr of foundAddresses) {
                       try {
-                        // Check if a record with this wallet ID already exists
                         const existingRecord = await Crawler.findOne({
                           walletId: addr,
                         });
 
                         if (!existingRecord) {
                           await Crawler.create({
-                            walletId: addr, // Adjust if walletId is not directly the address
+                            walletId: addr,
                             flag: "Criminal",
                             keyword: matchedKeywords,
-                            link: url, // Set the accuracy as per your criteria
+                            link: url,
                           });
                         }
                       } catch (error) {
@@ -102,7 +111,6 @@ mongoose
                   }
                 }
 
-                // Extract and queue links
                 let match;
                 while ((match = urlRegex.exec(pageContent)) !== null) {
                   const link = match[1];

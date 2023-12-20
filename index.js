@@ -15,6 +15,7 @@ import Transaction from "./models/Transaction.js";
 import { Worker } from "worker_threads";
 import Thread from "./models/Thread.js";
 import OpenAI from "openai";
+import Crawler from "./models/Crawler.js";
 
 const simulationWorker = new Worker("./workers/simulation-worker.js");
 const crawlerWorker = new Worker("./workers/crawler-worker.js");
@@ -591,6 +592,25 @@ app.get(
       res.json({
         status: "success",
         messages: thread[0].messages,
+      });
+    }
+  })
+);
+
+app.get(
+  "/crawler",
+  catchAsync(async (req, res) => {
+    const wallets = await Crawler.find({});
+
+    if (!wallets.length) {
+      res.json({
+        status: "success",
+        wallets: [],
+      });
+    } else {
+      res.json({
+        status: "success",
+        wallets: wallets,
       });
     }
   })

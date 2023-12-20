@@ -84,4 +84,6 @@ const tools = [
       },
     },
   },
+  { type: "code_interpreter" },
+  { type: "retrieval" },
 ];
