@@ -35,7 +35,6 @@ Transactions can be tracked with the help of blockchain data and government-cont
 ![alt text](images/dw_crawler.png)
 
 This project is a small-scale implementation of the paper "Deanonymisation of clients in Bitcoin P2P network": [View paper](https://arxiv.org/abs/1405.7418)
-If you would like to view the prototype, it is available under the images folder, which will be redirected here: [images](./images/)
 
 ### HackFest '24 - CSI
 Members: Jones, Dhyaneesh, Kaviraj and Akshath
