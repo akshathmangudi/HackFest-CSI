@@ -30,7 +30,7 @@ The proposed solution aims to de-anonymize blockchain transactions and wallets b
 5. Keras/Tensorflow (NLP)
 <br></br>
 
-If you would like to view the prototype, it is available under the images folder, which will be redirected here: [images]("C:/Users/Aksha/github/HackFest/HackFest-CSI/images")
+If you would like to view the prototype, it is available under the images folder, which will be redirected here: [images]("HackFest-CSI/images")
 
 ### HackFest '24 - CSI
 ### Members: Jones, Dhyaneesh, Kaviraj and Akshath
